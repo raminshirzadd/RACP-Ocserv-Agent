@@ -5,9 +5,10 @@
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node src/server.js"
-  },
+  "start": "node src/server.js",
+  "dev": "node src/server.js",
+  "test:occtl": "node scripts/test-occtl.js"
+},
   "engines": {
     "node": ">=18"
   },
@@ -15,3 +16,4 @@
     "express": "^4.19.2"
   }
 }
+

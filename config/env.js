@@ -34,8 +34,21 @@ function loadConfig() {
     // occtl runner defaults (used later)
     occtlPath: optionalEnv('OCCTL_PATH', '/usr/bin/occtl'),
     occtlTimeoutMs: parseIntEnv('OCCTL_TIMEOUT_MS', 5000),
+
+    occtlUseSudo: parseBoolEnv('OCCTL_USE_SUDO', true),
+
   };
 }
+
+function parseBoolEnv(name, fallback) {
+  const raw = optionalEnv(name, null);
+  if (raw == null) return fallback;
+  const v = raw.toLowerCase();
+  if (['1', 'true', 'yes', 'y', 'on'].includes(v)) return true;
+  if (['0', 'false', 'no', 'n', 'off'].includes(v)) return false;
+  throw new Error(`Invalid env var ${name}: must be boolean`);
+}
+
 
 module.exports = {
   loadConfig,

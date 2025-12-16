@@ -11,6 +11,7 @@ const ocservRoutes = require('./routes/ocserv.routes');
 const config = loadConfig();
 
 const app = express();
+app.locals.config = config;
 app.use(express.json());
 
 // requestId on everything

@@ -7,7 +7,9 @@
   "scripts": {
   "start": "node src/server.js",
   "dev": "node src/server.js",
-  "test:occtl": "node scripts/test-occtl.js"
+  "test:occtl": "node scripts/test-occtl.js",
+  "test:parse-users": "node scripts/test-parse-users.js"
+
 },
   "engines": {
     "node": ">=18"
@@ -15,5 +17,6 @@
   "dependencies": {
     "express": "^4.19.2"
   }
+ 
 }
 

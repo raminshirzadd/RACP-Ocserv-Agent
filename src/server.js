@@ -1,17 +1,39 @@
 // src/server.js
 const express = require('express');
 
-const app = express();
-const PORT = process.env.AGENT_PORT || 8088;
+const { loadConfig } = require('../config/env');
+const requestIdMiddleware = require('./middleware/requestId');
+const authMiddleware = require('./middleware/auth');
+const errorMiddleware = require('./middleware/error');
 
-// basic middleware
+const ocservRoutes = require('./routes/ocserv.routes');
+
+const config = loadConfig();
+
+const app = express();
 app.use(express.json());
 
-// temporary health endpoint (will be replaced later)
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+// requestId on everything
+app.use(requestIdMiddleware);
+
+// auth on everything under /ocserv
+app.use('/ocserv', authMiddleware(config), ocservRoutes);
+
+// fallback 404
+app.use((req, res) => {
+  res.status(404).json({
+    ok: false,
+    error: {
+      code: 'NOT_FOUND',
+      message: 'Route not found',
+      requestId: req.requestId || null,
+    },
+  });
 });
 
-app.listen(PORT, () => {
-  console.log(`[ocserv-agent] listening on port ${PORT}`);
+// error handler last
+app.use(errorMiddleware);
+
+app.listen(config.port, () => {
+  console.log(`[ocserv-agent] listening on port ${config.port} (${config.nodeEnv})`);
 });

@@ -6,7 +6,7 @@ const requestIdMiddleware = require('./middleware/requestId');
 const authMiddleware = require('./middleware/auth');
 const errorMiddleware = require('./middleware/error');
 
-const ocservRoutes = require('./routes/ocserv.routes');
+const ocservRoutes = require('./routes/ocservRoutes');
 
 const config = loadConfig();
 

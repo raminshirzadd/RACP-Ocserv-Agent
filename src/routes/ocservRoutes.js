@@ -1,6 +1,6 @@
 // src/routes/ocserv.routes.js
 const express = require('express');
-const controller = require('../controllers/ocservController');
+const ocservController = require('../controllers/ocservController');
 
 const router = express.Router();
 

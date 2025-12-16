@@ -8,8 +8,9 @@
   "start": "node src/server.js",
   "dev": "node src/server.js",
   "test:occtl": "node scripts/test-occtl.js",
-  "test:parse-users": "node scripts/test-parse-users.js"
-
+  "test:parse-users": "node scripts/test-parse-users.js",
+  "test:api-sessions": "node scripts/test-sessions-api.js"
+ 
 },
   "engines": {
     "node": ">=18"

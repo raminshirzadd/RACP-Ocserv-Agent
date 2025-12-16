@@ -2,6 +2,7 @@
 const { getOrCreateInstanceId } = require('../services/instanceIdentity');
 const { buildAgentInfo } = require('../services/agentInfo');
 const { checkOcservReady } = require('../services/ocservReadiness');
+const { loadAuthenticatedSessions } = require('../services/ocservSessionsService');
 
 const STARTED_AT = Date.now();
 
@@ -37,4 +38,20 @@ exports.health = async (req, res) => {
     ocserv,
     capabilities: CAPABILITIES,
   });
+};
+
+
+exports.listSessions = async (req, res, next) => {
+  try {
+    const config = req.app.locals.config;
+    const sessions = await loadAuthenticatedSessions(config);
+
+    return res.json({
+      ok: true,
+      sessions,
+      count: sessions.length,
+    });
+  } catch (err) {
+    return next(err);
+  }
 };

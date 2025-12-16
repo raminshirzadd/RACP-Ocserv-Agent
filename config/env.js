@@ -29,7 +29,9 @@ function loadConfig() {
     nodeEnv: optionalEnv('NODE_ENV', 'production'),
 
     // Security
-    authToken: requireEnv('AGENT_AUTH_TOKEN'),
+    authTokenCurrent: requireEnv('AGENT_AUTH_TOKEN_CURRENT'),
+    authTokenPrevious: optionalEnv('AGENT_AUTH_TOKEN_PREVIOUS', null),
+
 
     // occtl runner defaults (used later)
     occtlPath: optionalEnv('OCCTL_PATH', '/usr/bin/occtl'),

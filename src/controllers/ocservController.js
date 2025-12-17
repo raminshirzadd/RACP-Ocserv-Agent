@@ -10,6 +10,7 @@ const {
 
 const {
   disconnectSessionById,
+  disconnectAllByUsername,
 } = require('../services/ocservControlService');
 
 const { loadRadiusIdentity } = require('../services/radiusConfigService');
@@ -145,7 +146,6 @@ exports.getSession = async (req, res, next) => {
   }
 };
 
-
 exports.disconnect = async (req, res, next) => {
   try {
     const config = req.app.locals.config;
@@ -215,7 +215,6 @@ exports.disconnect = async (req, res, next) => {
   }
 };
 
-
 exports.disconnectAll = async (req, res, next) => {
   try {
     const config = req.app.locals.config;
@@ -225,34 +224,25 @@ exports.disconnectAll = async (req, res, next) => {
       return badRequest(res, req, 'Provide username');
     }
 
+    // Optional: load sessions first so we can report count + ids
     const sessions = await loadAuthenticatedSessions(config);
     const matches = sessions.filter((s) => s.username === username);
+    const ids = matches.map((s) => s.vpnSessionId);
 
-    if (matches.length === 0) {
-      return res.json({
-        ok: true,
-        username,
-        disconnectedCount: 0,
-        disconnectedSessionIds: [],
-      });
-    }
-
-    const disconnectedSessionIds = [];
-    for (const s of matches) {
-      await disconnectSessionById(config, s.vpnSessionId);
-      disconnectedSessionIds.push(s.vpnSessionId);
-    }
+    // Let ocserv do the disconnect itself
+    await disconnectAllByUsername(config, username);
 
     return res.json({
       ok: true,
       username,
-      disconnectedCount: disconnectedSessionIds.length,
-      disconnectedSessionIds,
+      disconnectedCount: ids.length,
+      disconnectedSessionIds: ids,
     });
   } catch (err) {
     return next(err);
   }
 };
+
 
 exports.radiusConfig = async (req, res, next) => {
   try {

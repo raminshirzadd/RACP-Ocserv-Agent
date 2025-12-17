@@ -7,6 +7,7 @@ const router = express.Router();
 // Contract endpoint
 router.get('/health', ocservController.health);
 router.get('/sessions', ocservController.listSessions);
+router.get('/session', ocservController.getSession);
 
 
 module.exports = router;

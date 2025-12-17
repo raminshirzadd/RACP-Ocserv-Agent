@@ -3,6 +3,11 @@ const { getOrCreateInstanceId } = require('../services/instanceIdentity');
 const { buildAgentInfo } = require('../services/agentInfo');
 const { checkOcservReady } = require('../services/ocservReadiness');
 const { loadAuthenticatedSessions } = require('../services/ocservSessionsService');
+const {
+  loadAuthenticatedSessions,
+  findSessionById,
+  findUniqueSessionByUsername,
+} = require('../services/ocservSessionsService');
 
 const STARTED_AT = Date.now();
 
@@ -13,6 +18,7 @@ const CAPABILITIES = {
   disconnectAllForUser: true,
   refreshSession: true,
 };
+
 
 exports.health = async (req, res) => {
   // 1) Stable instance identity (persisted if possible)
@@ -40,7 +46,6 @@ exports.health = async (req, res) => {
   });
 };
 
-
 exports.listSessions = async (req, res, next) => {
   try {
     const config = req.app.locals.config;
@@ -51,6 +56,61 @@ exports.listSessions = async (req, res, next) => {
       sessions,
       count: sessions.length,
     });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.getSession = async (req, res, next) => {
+  try {
+    const config = req.app.locals.config;
+
+    const vpnSessionId = req.query.vpnSessionId || null;
+    const username = req.query.username || null;
+
+    // Must provide at least one identifier
+    if (!vpnSessionId && !username) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Provide vpnSessionId or username',
+          requestId: req.requestId || null,
+        },
+      });
+    }
+
+    const sessions = await loadAuthenticatedSessions(config);
+
+    // 1) Prefer vpnSessionId if provided
+    if (vpnSessionId) {
+      const session = findSessionById(sessions, vpnSessionId);
+      return res.json({ ok: true, session });
+    }
+
+    // 2) Username lookup must be unique
+    const result = findUniqueSessionByUsername(sessions, username);
+
+    if (result.conflict) {
+      return res.status(409).json({
+        ok: false,
+        error: {
+          code: 'MULTIPLE_SESSIONS',
+          message: `Multiple active sessions found for username=${username}. Use vpnSessionId.`,
+          requestId: req.requestId || null,
+        },
+        matches: result.matches.map((s) => ({
+          vpnSessionId: s.vpnSessionId,
+          username: s.username,
+          ip: s.ip,
+          clientIp: s.clientIp,
+          device: s.device,
+          status: s.status,
+        })),
+      });
+    }
+
+    return res.json({ ok: true, session: result.session });
   } catch (err) {
     return next(err);
   }

@@ -1,0 +1,87 @@
+{
+  "info": {
+    "name": "RACP Ocserv Agent",
+    "_postman_id": "3dff2a78-4d7a-4f13-ae32-ocserv-agent",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Ocserv agent API for session listing and control (occtl)."
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+        "url": { "raw": "{{baseUrl}}/ocserv/health", "host": ["{{baseUrl}}"], "path": ["ocserv", "health"] }
+      }
+    },
+    {
+      "name": "List Sessions",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+        "url": { "raw": "{{baseUrl}}/ocserv/sessions", "host": ["{{baseUrl}}"], "path": ["ocserv", "sessions"] }
+      }
+    },
+    {
+      "name": "Get Session by username",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+        "url": {
+          "raw": "{{baseUrl}}/ocserv/session?username={{username}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["ocserv", "session"],
+          "query": [{ "key": "username", "value": "{{username}}" }]
+        }
+      }
+    },
+    {
+      "name": "Get Session by vpnSessionId",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+        "url": {
+          "raw": "{{baseUrl}}/ocserv/session?vpnSessionId={{vpnSessionId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["ocserv", "session"],
+          "query": [{ "key": "vpnSessionId", "value": "{{vpnSessionId}}" }]
+        }
+      }
+    },
+    {
+      "name": "Disconnect (by vpnSessionId)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"vpnSessionId\": {{vpnSessionId}}\n}\n"
+        },
+        "url": { "raw": "{{baseUrl}}/ocserv/disconnect", "host": ["{{baseUrl}}"], "path": ["ocserv", "disconnect"] }
+      }
+    },
+    {
+      "name": "DisconnectAll (by username)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{username}}\"\n}\n" },
+        "url": { "raw": "{{baseUrl}}/ocserv/disconnectAll", "host": ["{{baseUrl}}"], "path": ["ocserv", "disconnectAll"] }
+      }
+    },
+    {
+      "name": "Radius Config",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+        "url": { "raw": "{{baseUrl}}/ocserv/radius-config", "host": ["{{baseUrl}}"], "path": ["ocserv", "radius-config"] }
+      }
+    }
+  ]
+}

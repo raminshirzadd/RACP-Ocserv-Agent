@@ -1,0 +1,327 @@
+
+---
+
+## 2) `docs/openapi.yaml`
+
+```yaml
+# docs/openapi.yaml
+openapi: 3.0.3
+info:
+  title: RACP Ocserv Agent API
+  version: "0.1.0"
+  description: >
+    Minimal ocserv agent exposing occtl-powered session control for RACP.
+servers:
+  - url: http://{host}:{port}
+    variables:
+      host:
+        default: 127.0.0.1
+      port:
+        default: "8088"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+
+  schemas:
+    ErrorObject:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        requestId: { type: string, nullable: true }
+      required: [code, message]
+
+    ErrorResponse:
+      type: object
+      properties:
+        ok: { type: boolean, enum: [false] }
+        error:
+          $ref: "#/components/schemas/ErrorObject"
+      required: [ok, error]
+
+    Capabilities:
+      type: object
+      properties:
+        listSessions: { type: boolean }
+        disconnectSession: { type: boolean }
+        disconnectAllForUser: { type: boolean }
+        refreshSession: { type: boolean }
+      required: [listSessions, disconnectSession, disconnectAllForUser, refreshSession]
+
+    AgentHandshake:
+      type: object
+      properties:
+        name: { type: string }
+        version: { type: string }
+        apiVersion: { type: string }
+        instanceId: { type: string }
+        hostname: { type: string }
+        startedAt: { type: string, format: date-time }
+        persistedInstanceId: { type: boolean }
+      required: [name, version, apiVersion, instanceId, hostname, startedAt, persistedInstanceId]
+
+    OcservHealth:
+      type: object
+      properties:
+        ok: { type: boolean }
+        errorCode: { type: string }
+        errorMessage: { type: string }
+      required: [ok]
+
+    HealthResponse:
+      type: object
+      properties:
+        ok: { type: boolean, enum: [true] }
+        agent: { $ref: "#/components/schemas/AgentHandshake" }
+        ocserv: { $ref: "#/components/schemas/OcservHealth" }
+        capabilities: { $ref: "#/components/schemas/Capabilities" }
+      required: [ok, agent, ocserv, capabilities]
+
+    Session:
+      type: object
+      properties:
+        vpnSessionId: { type: integer }
+        username: { type: string, nullable: true }
+        groupname: { type: string, nullable: true }
+        clientIp: { type: string, nullable: true }
+        ip: { type: string, nullable: true }
+        device: { type: string, nullable: true }
+        since: { type: string, nullable: true }
+        sinceSeconds: { type: integer, nullable: true }
+        dtls: { type: boolean }
+        dtlsCipher: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+        rawLine: { type: string, nullable: true }
+      required: [vpnSessionId, dtls]
+
+    SessionsResponse:
+      type: object
+      properties:
+        ok: { type: boolean, enum: [true] }
+        sessions:
+          type: array
+          items: { $ref: "#/components/schemas/Session" }
+        count: { type: integer }
+      required: [ok, sessions, count]
+
+    SessionResponse:
+      type: object
+      properties:
+        ok: { type: boolean, enum: [true] }
+        session:
+          allOf:
+            - $ref: "#/components/schemas/Session"
+          nullable: true
+      required: [ok, session]
+
+    DisconnectRequest:
+      type: object
+      properties:
+        vpnSessionId: { type: integer, nullable: true }
+        username: { type: string, nullable: true }
+
+    DisconnectResponse:
+      type: object
+      properties:
+        ok: { type: boolean, enum: [true] }
+        disconnected: { type: boolean }
+        vpnSessionId: { type: integer, nullable: true }
+        username: { type: string, nullable: true }
+      required: [ok, disconnected]
+
+    DisconnectAllRequest:
+      type: object
+      properties:
+        username: { type: string }
+      required: [username]
+
+    DisconnectAllResponse:
+      type: object
+      properties:
+        ok: { type: boolean, enum: [true] }
+        username: { type: string }
+        disconnectedCount: { type: integer }
+        disconnectedSessionIds:
+          type: array
+          items: { type: integer }
+      required: [ok, username, disconnectedCount, disconnectedSessionIds]
+
+    RadiusConfigServer:
+      type: object
+      properties:
+        host: { type: string }
+        hasSecret: { type: boolean }
+      required: [host, hasSecret]
+
+    RadiusConfig:
+      type: object
+      properties:
+        nasIdentifier: { type: string, nullable: true }
+        authServer: { type: string, nullable: true }
+        acctServer: { type: string, nullable: true }
+        radiusclientConfPath: { type: string, nullable: true }
+        serversFile: { type: string, nullable: true }
+        servers:
+          type: array
+          items: { $ref: "#/components/schemas/RadiusConfigServer" }
+
+    RadiusConfigResponse:
+      type: object
+      properties:
+        ok: { type: boolean, enum: [true] }
+        radius: { $ref: "#/components/schemas/RadiusConfig" }
+      required: [ok, radius]
+
+security:
+  - BearerAuth: []
+
+paths:
+  /ocserv/health:
+    get:
+      summary: Health + handshake
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-Id:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /ocserv/sessions:
+    get:
+      summary: List live sessions
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-Id:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionsResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /ocserv/session:
+    get:
+      summary: Get a single session by vpnSessionId or username
+      parameters:
+        - in: query
+          name: vpnSessionId
+          schema: { type: integer }
+          required: false
+        - in: query
+          name: username
+          schema: { type: string }
+          required: false
+      responses:
+        "200":
+          description: OK (session may be null)
+          headers:
+            X-Request-Id:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionResponse" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /ocserv/disconnect:
+    post:
+      summary: Disconnect a session (by id) or a single-user session (by username)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DisconnectRequest" }
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-Id:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DisconnectResponse" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Conflict (multiple sessions for username)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /ocserv/disconnectAll:
+    post:
+      summary: Disconnect all sessions for a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DisconnectAllRequest" }
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-Id:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DisconnectAllResponse" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /ocserv/radius-config:
+    get:
+      summary: Read RADIUS client identity snapshot
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-Id:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RadiusConfigResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }

@@ -92,10 +92,3 @@ Internal RACP component.
 
 ```
 
----
-
-If you want, next I can:
-- align this README with **RACP backend docs**
-- add a **“Backend Integration”** section (mapping to `ocservConnector.js`)
-- or proceed directly to **Phase 6 / backend verification workflow**
-```

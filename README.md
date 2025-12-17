@@ -89,6 +89,3 @@ TOKEN=your_token BASE_URL=http://SERVER_IP:8088 bash scripts/smoke-api.sh
 ## License
 
 Internal RACP component.
-
-```
-

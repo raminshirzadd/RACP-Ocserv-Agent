@@ -2,7 +2,6 @@
 const { getOrCreateInstanceId } = require('../services/instanceIdentity');
 const { buildAgentInfo } = require('../services/agentInfo');
 const { checkOcservReady } = require('../services/ocservReadiness');
-const { loadAuthenticatedSessions } = require('../services/ocservSessionsService');
 const {
   loadAuthenticatedSessions,
   findSessionById,

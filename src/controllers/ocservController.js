@@ -8,6 +8,12 @@ const {
   findUniqueSessionByUsername,
 } = require('../services/ocservSessionsService');
 
+const {
+  disconnectSessionById,
+} = require('../services/ocservControlService');
+
+const { loadRadiusIdentity } = require('../services/radiusConfigService');
+
 const STARTED_AT = Date.now();
 
 // Static capabilities for now (matches our target contract)
@@ -17,6 +23,30 @@ const CAPABILITIES = {
   disconnectAllForUser: true,
   refreshSession: true,
 };
+
+
+function badRequest(res, req, message) {
+  return res.status(400).json({
+    ok: false,
+    error: {
+      code: 'BAD_REQUEST',
+      message,
+      requestId: req.requestId || null,
+    },
+  });
+}
+
+function conflict(res, req, code, message, extra = {}) {
+  return res.status(409).json({
+    ok: false,
+    error: {
+      code,
+      message,
+      requestId: req.requestId || null,
+    },
+    ...extra,
+  });
+}
 
 
 exports.health = async (req, res) => {
@@ -110,6 +140,125 @@ exports.getSession = async (req, res, next) => {
     }
 
     return res.json({ ok: true, session: result.session });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+
+exports.disconnect = async (req, res, next) => {
+  try {
+    const config = req.app.locals.config;
+
+    const vpnSessionId = req.body?.vpnSessionId ?? null;
+    const username = req.body?.username ?? null;
+
+    if (!vpnSessionId && !username) {
+      return badRequest(res, req, 'Provide vpnSessionId or username');
+    }
+
+    const sessions = await loadAuthenticatedSessions(config);
+
+    // 1) Prefer vpnSessionId
+    if (vpnSessionId) {
+      const session = findSessionById(sessions, vpnSessionId);
+      if (!session) {
+        return res.json({ ok: true, disconnected: false, reason: 'not_found' });
+      }
+
+      await disconnectSessionById(config, session.vpnSessionId);
+
+      return res.json({
+        ok: true,
+        disconnected: true,
+        vpnSessionId: session.vpnSessionId,
+        username: session.username,
+      });
+    }
+
+    // 2) Username path must resolve to a single active session
+    const result = findUniqueSessionByUsername(sessions, username);
+
+    if (result.conflict) {
+      return conflict(
+        res,
+        req,
+        'MULTIPLE_SESSIONS',
+        `Multiple active sessions found for username=${username}. Use vpnSessionId.`,
+        {
+          matches: result.matches.map((s) => ({
+            vpnSessionId: s.vpnSessionId,
+            username: s.username,
+            ip: s.ip,
+            clientIp: s.clientIp,
+            device: s.device,
+            status: s.status,
+          })),
+        }
+      );
+    }
+
+    if (!result.session) {
+      return res.json({ ok: true, disconnected: false, reason: 'not_found' });
+    }
+
+    await disconnectSessionById(config, result.session.vpnSessionId);
+
+    return res.json({
+      ok: true,
+      disconnected: true,
+      vpnSessionId: result.session.vpnSessionId,
+      username: result.session.username,
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+
+exports.disconnectAll = async (req, res, next) => {
+  try {
+    const config = req.app.locals.config;
+
+    const username = req.body?.username ?? null;
+    if (!username) {
+      return badRequest(res, req, 'Provide username');
+    }
+
+    const sessions = await loadAuthenticatedSessions(config);
+    const matches = sessions.filter((s) => s.username === username);
+
+    if (matches.length === 0) {
+      return res.json({
+        ok: true,
+        username,
+        disconnectedCount: 0,
+        disconnectedSessionIds: [],
+      });
+    }
+
+    const disconnectedSessionIds = [];
+    for (const s of matches) {
+      await disconnectSessionById(config, s.vpnSessionId);
+      disconnectedSessionIds.push(s.vpnSessionId);
+    }
+
+    return res.json({
+      ok: true,
+      username,
+      disconnectedCount: disconnectedSessionIds.length,
+      disconnectedSessionIds,
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.radiusConfig = async (req, res, next) => {
+  try {
+    const config = req.app.locals.config;
+    const data = await loadRadiusIdentity(config);
+    return res.json(data);
   } catch (err) {
     return next(err);
   }

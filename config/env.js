@@ -39,6 +39,10 @@ function loadConfig() {
 
     occtlUseSudo: parseBoolEnv('OCCTL_USE_SUDO', true),
 
+
+    radiusclientConfPath: optionalEnv('RADIUSCLIENT_CONF_PATH', '/etc/radcli/radiusclient.conf'),
+    radiusServersPath: optionalEnv('RADIUS_SERVERS_PATH', '/etc/radcli/servers'),
+
   };
 }
 
@@ -50,6 +54,7 @@ function parseBoolEnv(name, fallback) {
   if (['0', 'false', 'no', 'n', 'off'].includes(v)) return false;
   throw new Error(`Invalid env var ${name}: must be boolean`);
 }
+
 
 
 module.exports = {

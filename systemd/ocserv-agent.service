@@ -1,0 +1,35 @@
+[Unit]
+Description=RACP Ocserv Agent
+After=network.target ocserv.service
+Wants=ocserv.service
+
+[Service]
+Type=simple
+User=ocservagent
+Group=ocservagent
+
+EnvironmentFile=/etc/ocserv-agent.env
+WorkingDirectory=/opt/RACP-Ocserv-Agent
+ExecStart=/usr/bin/node src/server.js
+
+Restart=always
+RestartSec=3
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+ReadWritePaths=/var/lib/ocserv-agent
+ReadOnlyPaths=/etc/radcli
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+

@@ -1,21 +1,36 @@
-
----
-
-## `scripts/install.sh`
-
-```bash
 #!/usr/bin/env bash
 # scripts/install.sh
+#
+# RACP Ocserv Agent installer (systemd + sudoers + radcli read permissions)
+#
+# Notes:
+# - Assumes repo is already present at INSTALL_DIR (git clone first).
+# - Creates:
+#   - system user: ocservagent
+#   - data dir: /var/lib/ocserv-agent (persisted instanceId)
+#   - env file: /etc/ocserv-agent.env (if missing)
+#   - sudoers: /etc/sudoers.d/ocserv-agent (occtl only, non-interactive)
+#   - radcli read access: group radcliread + chmod/chgrp on /etc/radcli/servers*
+#   - systemd unit: /etc/systemd/system/ocserv-agent.service
+#
+# Safe defaults are applied, but NoNewPrivileges MUST remain false (sudo needed).
 
 set -euo pipefail
 
 APP_NAME="ocserv-agent"
 SERVICE_USER="ocservagent"
+
 INSTALL_DIR="/opt/RACP-Ocserv-Agent"
 DATA_DIR="/var/lib/ocserv-agent"
+
 ENV_FILE="/etc/ocserv-agent.env"
 SUDOERS_FILE="/etc/sudoers.d/ocserv-agent"
 SYSTEMD_UNIT="/etc/systemd/system/ocserv-agent.service"
+
+RADCLI_DIR="/etc/radcli"
+RADCLI_SERVERS_FILE="/etc/radcli/servers"
+RADCLI_SERVERS_TLS_FILE="/etc/radcli/servers-tls"
+RADCLI_GROUP="radcliread"
 
 DEFAULT_PORT="8088"
 DEFAULT_OCCTL="/usr/bin/occtl"
@@ -35,6 +50,8 @@ check_tools() {
   command -v node >/dev/null 2>&1 || die "node not found. Install Node.js (recommended Node 20+ LTS)."
   command -v npm  >/dev/null 2>&1 || die "npm not found. Install npm."
   command -v sudo >/dev/null 2>&1 || die "sudo not found."
+  command -v systemctl >/dev/null 2>&1 || die "systemctl not found (systemd required)."
+  command -v visudo >/dev/null 2>&1 || die "visudo not found (sudo package missing?)."
 }
 
 ensure_user() {
@@ -61,9 +78,10 @@ install_deps() {
     die "package.json not found in ${INSTALL_DIR}. Put repo there first (git clone) or adjust INSTALL_DIR."
   fi
 
-  log "Installing production dependencies (npm ci --omit=dev)..."
+  log "Installing production dependencies..."
   pushd "${INSTALL_DIR}" >/dev/null
   if [[ -f package-lock.json ]]; then
+    log "npm ci --omit=dev"
     npm ci --omit=dev
   else
     warn "package-lock.json missing; using npm install --omit=dev"
@@ -99,10 +117,18 @@ EOF
 }
 
 configure_sudoers() {
+  # We allow only the occtl subcommands we need, non-interactive.
   log "Configuring sudoers for occtl: ${SUDOERS_FILE}"
   cat > "${SUDOERS_FILE}" <<EOF
-${SERVICE_USER} ALL=(root) NOPASSWD: ${DEFAULT_OCCTL}
+Defaults:${SERVICE_USER} !requiretty
+
+${SERVICE_USER} ALL=(root) NOPASSWD: ${DEFAULT_OCCTL} show status
+${SERVICE_USER} ALL=(root) NOPASSWD: ${DEFAULT_OCCTL} show users
+${SERVICE_USER} ALL=(root) NOPASSWD: ${DEFAULT_OCCTL} show sessions
+${SERVICE_USER} ALL=(root) NOPASSWD: ${DEFAULT_OCCTL} disconnect id *
+${SERVICE_USER} ALL=(root) NOPASSWD: ${DEFAULT_OCCTL} disconnect user *
 EOF
+
   chmod 440 "${SUDOERS_FILE}"
 
   log "Validating sudoers syntax..."
@@ -110,6 +136,55 @@ EOF
 
   log "Sanity-check: ${SERVICE_USER} can run occtl non-interactively..."
   sudo -u "${SERVICE_USER}" sudo -n "${DEFAULT_OCCTL}" show status >/dev/null
+  sudo -u "${SERVICE_USER}" sudo -n "${DEFAULT_OCCTL}" show users  >/dev/null
+}
+
+configure_radcli_read_access() {
+  if [[ ! -d "${RADCLI_DIR}" ]]; then
+    warn "${RADCLI_DIR} not found; skipping radcli permissions (radius-config endpoint may be limited)."
+    return
+  fi
+
+  log "Configuring radcli read access for ${SERVICE_USER}..."
+
+  # Ensure group exists
+  if getent group "${RADCLI_GROUP}" >/dev/null 2>&1; then
+    log "Group '${RADCLI_GROUP}' already exists."
+  else
+    log "Creating group '${RADCLI_GROUP}'..."
+    groupadd -f "${RADCLI_GROUP}"
+  fi
+
+  # Add service user to group (idempotent)
+  usermod -aG "${RADCLI_GROUP}" "${SERVICE_USER}"
+
+  # Directory must be searchable to read files inside
+  chmod 755 "${RADCLI_DIR}" || true
+
+  # servers files are commonly 600 root:root; we set group read
+  if [[ -f "${RADCLI_SERVERS_FILE}" ]]; then
+    chgrp "${RADCLI_GROUP}" "${RADCLI_SERVERS_FILE}"
+    chmod 640 "${RADCLI_SERVERS_FILE}"
+  else
+    warn "Missing ${RADCLI_SERVERS_FILE} (radius-config endpoint may not report servers list)."
+  fi
+
+  if [[ -f "${RADCLI_SERVERS_TLS_FILE}" ]]; then
+    chgrp "${RADCLI_GROUP}" "${RADCLI_SERVERS_TLS_FILE}"
+    chmod 640 "${RADCLI_SERVERS_TLS_FILE}"
+  else
+    # not always present; that's ok
+    warn "Missing ${RADCLI_SERVERS_TLS_FILE} (ok if TLS radcli not used)."
+  fi
+
+  # Quick read test (non-fatal; user may need re-login in some environments)
+  if [[ -f "${RADCLI_SERVERS_FILE}" ]]; then
+    if sudo -u "${SERVICE_USER}" /bin/cat "${RADCLI_SERVERS_FILE}" >/dev/null 2>&1; then
+      log "radcli read test OK (${SERVICE_USER} can read servers file)."
+    else
+      warn "radcli read test failed. If service still can't read, restart service and confirm group membership applied."
+    fi
+  fi
 }
 
 install_systemd_unit() {
@@ -139,6 +214,10 @@ ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=${DATA_DIR}
 
+# Allow read access to radcli directory (radius-config endpoint).
+# Note: the files themselves are protected via group read (radcliread).
+ReadOnlyPaths=${RADCLI_DIR}
+
 # IMPORTANT:
 # Keep NoNewPrivileges OFF because we rely on sudo -n for occtl.
 NoNewPrivileges=false
@@ -162,14 +241,19 @@ post_checks() {
   systemctl status "${APP_NAME}.service" --no-pager || true
 
   log "Recent logs:"
-  journalctl -u "${APP_NAME}.service" -n 30 --no-pager || true
+  journalctl -u "${APP_NAME}.service" -n 60 --no-pager || true
 
-  log "Done."
+  echo
+  log "Sanity checks:"
+  echo "  - occtl (must be 0):"
+  echo "      sudo -u ${SERVICE_USER} sudo -n ${DEFAULT_OCCTL} show status >/dev/null; echo \$?"
+  echo "  - radcli read (should not be Permission denied):"
+  echo "      sudo -u ${SERVICE_USER} cat ${RADCLI_SERVERS_FILE}"
   echo
   echo "Next steps:"
   echo "1) Edit ${ENV_FILE} and set AGENT_AUTH_TOKEN_CURRENT (strong secret)"
   echo "2) Restart: sudo systemctl restart ${APP_NAME}"
-  echo "3) Verify health:"
+  echo "3) Verify health (from backend/admin machine):"
   echo "   curl -s -H \"Authorization: Bearer <TOKEN>\" http://<SERVER_IP>:${DEFAULT_PORT}/ocserv/health | jq"
   echo
   echo "Firewall reminder: allow port ${DEFAULT_PORT} only from backend IP(s)."
@@ -183,6 +267,7 @@ main() {
   create_env_file_if_missing
   install_deps
   configure_sudoers
+  configure_radcli_read_access
   install_systemd_unit
   post_checks
 }

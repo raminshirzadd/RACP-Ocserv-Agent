@@ -35,29 +35,32 @@ function parseRadiusclientConf(text) {
 
   return out;
 }
-
 function parseServersFile(text) {
   if (!text) return [];
 
   const servers = [];
-  const lines = text.split('\n');
 
-  for (let line of lines) {
+  for (let line of text.split('\n')) {
     line = line.trim();
     if (!line || line.startsWith('#')) continue;
 
-    // typical format: host[:port] secret
+    // format: host[:port] secret
+    // or: client/server secret  (radcli supports pairs)
     const parts = line.split(/\s+/);
     if (parts.length < 2) continue;
 
+    const hostToken = parts[0]; // may be "host", "host:port", or "client/server"
+    const secret = parts.slice(1).join(' ');
+
     servers.push({
-      host: parts[0],
-      hasSecret: true,
+      host: hostToken,
+      hasSecret: !!secret && secret.length > 0,
     });
   }
 
   return servers;
 }
+
 
 async function loadRadiusIdentity(config) {
   const confPath = config.radiusclientConfPath;

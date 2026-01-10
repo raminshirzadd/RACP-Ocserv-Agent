@@ -80,8 +80,51 @@ function asInt(v) {
       rawLine: null,
     };
   }
+
+
+  function normalizeServerStatus(obj) {
+    if (!obj || typeof obj !== 'object') return null;
+  
+    const status = asStr(obj.Status);
+  
+    return {
+      status, // "online"
+      serverPid: asInt(obj['Server PID']),
+      secModPid: asInt(obj['Sec-mod PID']),
+      secModInstanceCount: asInt(obj['Sec-mod instance count']),
+  
+      upSince: asStr(obj['Up since']),
+      upSinceAgo: asStr(obj['_Up since']),
+      rawUpSince: asInt(obj.raw_up_since),
+      uptimeSeconds: asInt(obj.uptime),
+  
+      activeSessions: asInt(obj['Active sessions']),
+      totalSessions: asInt(obj['Total sessions']),
+  
+      totalAuthFailures: asInt(obj['Total authentication failures']),
+      authFailures: asInt(obj['Authentication failures']),
+      ipsInBanList: asInt(obj['IPs in ban list']),
+  
+      rxHuman: asStr(obj.RX),
+      txHuman: asStr(obj.TX),
+      rxBytes: asInt(obj.raw_rx),
+      txBytes: asInt(obj.raw_tx),
+  
+      // Optional extra stats you may want later
+      sessionsHandled: asInt(obj['Sessions handled']),
+      timedOutSessions: asInt(obj['Timed out sessions']),
+      timedOutIdleSessions: asInt(obj['Timed out (idle) sessions']),
+      closedDueToErrorSessions: asInt(obj['Closed due to error sessions']),
+      avgSessionTime: asStr(obj['Average session time']),
+      rawAvgSessionTime: asInt(obj.raw_avg_session_time),
+      maxSessionTime: asStr(obj['Max session time']),
+      rawMaxSessionTime: asInt(obj.raw_max_session_time),
+    };
+  }
+  
   
   module.exports = {
     normalizeUserSession,
+    normalizeServerStatus,
   };
   

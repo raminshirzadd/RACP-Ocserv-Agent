@@ -11,6 +11,7 @@ router.get('/session', ocservController.getSession);
 router.post('/disconnect', ocservController.disconnect);
 router.post('/disconnectAll', ocservController.disconnectAll);
 router.get('/radius-config', ocservController.radiusConfig);
+router.get('/status', ocservController.status);
 
 
 module.exports = router;

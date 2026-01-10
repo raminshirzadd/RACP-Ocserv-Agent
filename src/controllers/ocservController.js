@@ -1,4 +1,4 @@
-// src/controllers/ocserv.controller.js
+// src/controllers/ocservController.js
 const { getOrCreateInstanceId } = require('../services/instanceIdentity');
 const { buildAgentInfo } = require('../services/agentInfo');
 const { checkOcservReady } = require('../services/ocservReadiness');
@@ -14,6 +14,8 @@ const {
 } = require('../services/ocservControlService');
 
 const { loadRadiusIdentity } = require('../services/radiusConfigService');
+const { loadOcservStatus } = require('../services/ocservStatusService');
+
 
 const STARTED_AT = Date.now();
 
@@ -74,6 +76,20 @@ exports.health = async (req, res) => {
     ocserv,
     capabilities: CAPABILITIES,
   });
+};
+
+exports.status = async (req, res, next) => {
+  try {
+    const config = req.app.locals.config;
+    const status = await loadOcservStatus(config);
+
+    return res.json({
+      ok: true,
+      status,
+    });
+  } catch (err) {
+    return next(err);
+  }
 };
 
 exports.listSessions = async (req, res, next) => {

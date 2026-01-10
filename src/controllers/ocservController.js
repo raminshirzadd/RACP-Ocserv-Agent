@@ -243,7 +243,6 @@ exports.disconnectAll = async (req, res, next) => {
   }
 };
 
-
 exports.radiusConfig = async (req, res, next) => {
   try {
     const config = req.app.locals.config;

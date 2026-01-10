@@ -25,7 +25,6 @@ async function loadAuthenticatedSessions(config) {
   return sessions.filter(isAuthenticatedSession);
 }
 
-
 // src/services/ocservSessionsService.js
 
 function findSessionById(sessions, vpnSessionId) {

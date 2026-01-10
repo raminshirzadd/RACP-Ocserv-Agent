@@ -1,9 +1,9 @@
 // src/services/ocservReadiness.js
-const { runOcctl } = require('./occtlRunner');
+const { runOcctlJson } = require('./occtlRunner');
 
 /**
  * Fast readiness check:
- * - uses occtl show status
+ * - uses occtl --json show status
  * - short timeout (override occtlTimeoutMs temporarily)
  * - NEVER throws (returns { ok:false, ... } on failures)
  */
@@ -14,11 +14,10 @@ async function checkOcservReady(config, { timeoutMs = 1500 } = {}) {
       occtlTimeoutMs: timeoutMs,
     };
 
-    await runOcctl(cfg, ['show', 'status']);
+    // Just ensure occtl works + JSON parses
+    await runOcctlJson(cfg, ['--json', 'show', 'status'], { expect: 'object' });
 
-    return {
-      ok: true,
-    };
+    return { ok: true };
   } catch (err) {
     return {
       ok: false,

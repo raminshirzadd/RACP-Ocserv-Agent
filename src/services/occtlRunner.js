@@ -89,7 +89,6 @@ function runOcctl(config, args) {
       if (finished) return;
       finished = true;
 
-      // Common case: occtl path wrong or sudo missing
       const msg = e.message || 'Unknown spawn error';
       const code = msg.includes('ENOENT') ? 'OCCTL_NOT_FOUND' : 'OCCTL_FAILED';
 
@@ -109,13 +108,18 @@ function runOcctl(config, args) {
       const err = stderr.trimEnd();
 
       if (exitCode !== 0) {
-        // Special case: sudo requires password / permission denied
-        if (err.includes('a password is required') || err.includes('not allowed') || err.includes('permission')) {
+        if (
+          err.includes('a password is required') ||
+          err.includes('not allowed') ||
+          err.includes('permission')
+        ) {
           return reject(
-            makeError('OCCTL_FAILED', `occtl permission error (sudoers?): ${err || out || 'exit=' + exitCode}`, 503, {
-              display,
-              exitCode,
-            })
+            makeError(
+              'OCCTL_FAILED',
+              `occtl permission error (sudoers?): ${err || out || 'exit=' + exitCode}`,
+              503,
+              { display, exitCode }
+            )
           );
         }
 
@@ -133,6 +137,58 @@ function runOcctl(config, args) {
   });
 }
 
+/**
+ * Run occtl and parse stdout as JSON.
+ *
+ * - Throws OCCTL_BAD_JSON if stdout is not valid JSON.
+ * - Allows callers to enforce expected JSON type (array/object).
+ *
+ * @param {object} config
+ * @param {string[]} args
+ * @param {object} [opts]
+ * @param {'array'|'object'|null} [opts.expect] - expected JSON type
+ * @returns {Promise<any>}
+ */
+async function runOcctlJson(config, args, opts = {}) {
+  const { expect = null } = opts;
+
+  const res = await runOcctl(config, args);
+
+  const raw = (res.stdout || '').trim();
+  if (!raw) {
+    throw makeError('OCCTL_BAD_JSON', 'occtl returned empty JSON output', 503, {
+      display: buildCommand(config, args).display,
+    });
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    throw makeError('OCCTL_BAD_JSON', `occtl returned invalid JSON: ${e.message}`, 503, {
+      display: buildCommand(config, args).display,
+      sample: raw.slice(0, 300),
+    });
+  }
+
+  if (expect === 'array' && !Array.isArray(parsed)) {
+    throw makeError('OCCTL_BAD_JSON', 'occtl JSON was not an array as expected', 503, {
+      display: buildCommand(config, args).display,
+      actualType: typeof parsed,
+    });
+  }
+
+  if (expect === 'object' && (parsed === null || Array.isArray(parsed) || typeof parsed !== 'object')) {
+    throw makeError('OCCTL_BAD_JSON', 'occtl JSON was not an object as expected', 503, {
+      display: buildCommand(config, args).display,
+      actualType: Array.isArray(parsed) ? 'array' : typeof parsed,
+    });
+  }
+
+  return parsed;
+}
+
 module.exports = {
   runOcctl,
+  runOcctlJson,
 };

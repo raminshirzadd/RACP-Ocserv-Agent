@@ -15,6 +15,20 @@
       }
     },
     {
+      "name": "Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/ocserv/status",
+          "host": ["{{baseUrl}}"],
+          "path": ["ocserv", "status"]
+        }
+      }
+    },
+    {
       "name": "List Sessions",
       "request": {
         "method": "GET",

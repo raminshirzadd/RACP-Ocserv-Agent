@@ -1,10 +1,3 @@
-
----
-
-## 2) `docs/openapi.yaml`
-
-```yaml
-# docs/openapi.yaml
 openapi: 3.0.3
 info:
   title: RACP Ocserv Agent API
@@ -174,6 +167,46 @@ components:
         ok: { type: boolean, enum: [true] }
         radius: { $ref: "#/components/schemas/RadiusConfig" }
       required: [ok, radius]
+    StatusResponse:
+      type: object
+      properties:
+        ok: { type: boolean, enum: [true] }
+        status: { $ref: "#/components/schemas/OcservStatus" }
+      required: [ok, status]
+
+    OcservStatus:
+      type: object
+      properties:
+        status: { type: string, nullable: true }
+        serverPid: { type: integer, nullable: true }
+        secModPid: { type: integer, nullable: true }
+        secModInstanceCount: { type: integer, nullable: true }
+        upSince: { type: string, nullable: true }
+        rawUpSince: { type: integer, nullable: true }
+        uptime: { type: integer, nullable: true }
+        activeSessions: { type: integer, nullable: true }
+        totalSessions: { type: integer, nullable: true }
+        totalAuthenticationFailures: { type: integer, nullable: true }
+        ipsInBanList: { type: integer, nullable: true }
+        lastStatsReset: { type: string, nullable: true }
+        rawLastStatsReset: { type: integer, nullable: true }
+        sessionsHandled: { type: integer, nullable: true }
+        timedOutSessions: { type: integer, nullable: true }
+        timedOutIdleSessions: { type: integer, nullable: true }
+        closedDueToErrorSessions: { type: integer, nullable: true }
+        authenticationFailures: { type: integer, nullable: true }
+        rawAvgAuthTime: { type: integer, nullable: true }
+        rawMaxAuthTime: { type: integer, nullable: true }
+        rawAvgSessionTime: { type: integer, nullable: true }
+        rawMaxSessionTime: { type: integer, nullable: true }
+        minMtu: { type: integer, nullable: true }
+        maxMtu: { type: integer, nullable: true }
+        rawRx: { type: integer, nullable: true }
+        rawTx: { type: integer, nullable: true }
+      additionalProperties: true
+      
+
+
 
 security:
   - BearerAuth: []
@@ -302,6 +335,24 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /ocserv/status:
+    get:
+      summary: Get ocserv status and statistics (JSON)
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-Id:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StatusResponse" }
         "401":
           description: Unauthorized
           content:

@@ -35,6 +35,19 @@ See:
 - `postman/RACP-Ocserv-Agent.postman_collection.json`
 
 ---
+## Pre Installation
+
+sudo dnf -y install curl ca-certificates
+curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+sudo dnf -y install nodejs
+node -v  
+npm -v
+
+
+mkdir -p /opt
+mkdir -p /opt/RACP-Ocserv-Agent
+
+git clone HTTPS URL
 
 ## Installation
 Recommended method:

@@ -1,4 +1,4 @@
-// src/routes/ocserv.routes.js
+// src/routes/ocservRoutes.js
 const express = require('express');
 const ocservController = require('../controllers/ocservController');
 

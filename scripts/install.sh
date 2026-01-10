@@ -122,9 +122,13 @@ configure_sudoers() {
   cat > "${SUDOERS_FILE}" <<EOF
 Defaults:${SERVICE_USER} !requiretty
 
+# Read operations
 ${SERVICE_USER} ALL=(root) NOPASSWD: ${DEFAULT_OCCTL} show status
 ${SERVICE_USER} ALL=(root) NOPASSWD: ${DEFAULT_OCCTL} show users
-${SERVICE_USER} ALL=(root) NOPASSWD: ${DEFAULT_OCCTL} show sessions
+${SERVICE_USER} ALL=(root) NOPASSWD: ${DEFAULT_OCCTL} --json show status
+${SERVICE_USER} ALL=(root) NOPASSWD: ${DEFAULT_OCCTL} --json show users
+
+# Control operations
 ${SERVICE_USER} ALL=(root) NOPASSWD: ${DEFAULT_OCCTL} disconnect id *
 ${SERVICE_USER} ALL=(root) NOPASSWD: ${DEFAULT_OCCTL} disconnect user *
 EOF
@@ -137,6 +141,8 @@ EOF
   log "Sanity-check: ${SERVICE_USER} can run occtl non-interactively..."
   sudo -u "${SERVICE_USER}" sudo -n "${DEFAULT_OCCTL}" show status >/dev/null
   sudo -u "${SERVICE_USER}" sudo -n "${DEFAULT_OCCTL}" show users  >/dev/null
+  sudo -u "${SERVICE_USER}" sudo -n "${DEFAULT_OCCTL}" --json show status >/dev/null
+  sudo -u "${SERVICE_USER}" sudo -n "${DEFAULT_OCCTL}" --json show users  >/dev/null
 }
 
 configure_radcli_read_access() {
@@ -249,6 +255,8 @@ post_checks() {
   echo "      sudo -u ${SERVICE_USER} sudo -n ${DEFAULT_OCCTL} show status >/dev/null; echo \$?"
   echo "  - radcli read (should not be Permission denied):"
   echo "      sudo -u ${SERVICE_USER} cat ${RADCLI_SERVERS_FILE}"
+  echo "      sudo -u ${SERVICE_USER} sudo -n ${DEFAULT_OCCTL} --json show status >/dev/null; echo \$?"
+  echo "      sudo -u ${SERVICE_USER} sudo -n ${DEFAULT_OCCTL} --json show users  >/dev/null; echo \$?"
   echo
   echo "Next steps:"
   echo "1) Edit ${ENV_FILE} and set AGENT_AUTH_TOKEN_CURRENT (strong secret)"
